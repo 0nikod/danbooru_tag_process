@@ -1,0 +1,47 @@
+name: Monthly Data Update
+
+on:
+  schedule:
+    - cron: '0 0 1 * *' # Run at 00:00 on day-of-month 1.
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        run: uv python install
+
+      - name: Install dependencies
+        run: uv pip install pandas pyarrow huggingface_hub requests numpy
+
+      - name: Check for updates and process
+        id: check
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Run the update script
+          # Assumes scripts/update_tags.py matches the location
+          uv run scripts/update_tags.py --repo-name "${{ github.repository }}"
+
+      - name: Release to GitHub
+        if: steps.check.outputs.should_release == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.check.outputs.release_tag }}
+          name: Data Update ${{ steps.check.outputs.release_tag }}
+          body: |
+            Automated update from [deepghs/site_tags](https://huggingface.co/datasets/deepghs/site_tags).
+            Upstream Commit: `${{ steps.check.outputs.hf_sha }}`
+          files: tags_processed.parquet
+          draft: false
+          prerelease: false
