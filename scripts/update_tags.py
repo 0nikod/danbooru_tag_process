@@ -23,9 +23,24 @@ def get_latest_commit_sha(repo_id):
     return None
 
 def download_data(repo_id, filename):
+    # Default to danbooru if just filename provided, or accept full path
+    # But for this script, let's just specific the remote filename vs local filename
     print(f"Downloading {filename} from {repo_id}...")
     try:
-        return hf_hub_download(repo_id=repo_id, filename=filename, repo_type="dataset", local_dir=".")
+        # We want to download 'danbooru.donmai.us/tags.parquet' but save as 'tags.parquet'
+        # The hf_hub_download 'filename' argument is the REMOTE path.
+        # We can rename it after download or rely on uv/cache, but hf_hub_download downloads to cache and returns path.
+        # Wait, if we use local_dir=".", it maintains structure. 
+        # So 'danbooru.donmai.us/tags.parquet' will be saved to './danbooru.donmai.us/tags.parquet'.
+        # We need to move it or change logic.
+        
+        file_path = hf_hub_download(repo_id=repo_id, filename="danbooru.donmai.us/tags.parquet", repo_type="dataset", local_dir=".")
+        
+        # Move to root tags.parquet if needed, or just return path
+        import shutil
+        target = "tags.parquet"
+        shutil.move(file_path, target)
+        return target
     except Exception as e:
         print(f"Failed to download {filename}. Error: {e}")
         print("Listing available files in repo to help debug...")
